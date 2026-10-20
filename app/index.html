@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧不動產與氣象 GIS 地圖系統</title>
+    <!-- 引入 Leaflet 地圖 CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #f8f9fa;
+        }
+
+        /* 左側控制面板與儀表板 */
+        .sidebar {
+            width: 420px;
+            background: #ffffff;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .sidebar h2 {
+            font-size: 20px;
+            color: #202124;
+            margin-bottom: 8px;
+        }
+
+        .sidebar p.desc {
+            font-size: 13px;
+            color: #5f6368;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #3c4043;
+            margin-bottom: 5px;
+        }
+
+        .form-group select, .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #dadce0;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-group select:focus, .form-group input:focus {
+            border-color: #1a73e8;
+        }
+
+        .btn-query {
+            width: 100%;
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn-query:hover {
+            background-color: #1557b0;
+        }
+
+        /* 結果展示面板卡片 */
+        .results-container {
+            margin-top: 25px;
+            border-top: 1px solid #e8eaed;
+            padding-top: 20px;
+        }
+
+        .results-container h3 {
+            font-size: 16px;
+            color: #202124;
+            margin-bottom: 12px;
+        }
+
+        .card {
+            background: #f1f3f4;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 12px;
+        }
+
+        .card-title {
+            font-size: 12px;
+            color: #5f6368;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .card-value {
+            font-size: 20px;
+            color: #202124;
+            font-weight: bold;
+        }
+
+        .card-sub {
+            font-size: 13px;
+            color: #1a73e8;
+            margin-top: 3px;
+        }
+
+        /* 右側滿版地圖區域 */
+        #map {
+            flex-grow: 1;
+            height: 100vh;
+        }
+
+        .loading {
+            text-align: center;
+            color: #1a73e8;
+            font-weight: 600;
+            margin-top: 15px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 左側控制與分析面板 -->
+    <div class="sidebar">
+        <h2>🗺️ 智慧不動產與氣象 GIS</h2>
+        <p class="desc">仿 Google Maps 滿版地圖介面，點擊地圖或設定地址以取得後端 AI/開放資料分析。</p>
+
+        <!-- 地址與行政區選單 -->
+        <div class="form-group">
+            <label for="citySelect">選擇縣市</label>
+            <select id="citySelect" onchange="updateDistricts()">
+                <option value="臺北市">臺北市</option>
+                <option value="新北市">新北市</option>
+                <option value="臺中市">臺中市</option>
+                <option value="高雄市">高雄市</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="districtSelect">鄉鎮市區</label>
+            <select id="districtSelect" onchange="onDistrictChange()">
+                <option value="大安區">大安區</option>
+                <option value="信義區">信義區</option>
+                <option value="中正區">中正區</option>
+                <option value="中山區">中山區</option>
+                <option value="大同區">大同區</option>
+                <option value="文山區">文山區</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="villageInput">村 / 里 (選填)</label>
+            <input type="text" id="villageInput" placeholder="例如：光武里">
+        </div>
+
+        <div class="form-group">
+            <label for="roadInput">道路 / 街名 / 門牌 (選填)</label>
+            <input type="text" id="roadInput" placeholder="例如：忠孝東路四段">
+        </div>
+
+        <button class="btn-query" onclick="fetchBackendData()">🚀 開始分析選定區域</button>
+        <div id="loadingText" class="loading">正在連線至後端雲端服務取得數據...</div>
+
+        <!-- 數據儀表板結果區 -->
+        <div class="results-container" id="resultPanel" style="display: none;">
+            <h3>📊 區域即時分析報告</h3>
+            
+            <div class="card">
+                <div class="card-title">區域平均單價</div>
+                <div class="card-value" id="priceVal">-</div>
+                <div class="card-sub" id="sampleVal">-</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">氣象觀測站氣溫</div>
+                <div class="card-value" id="tempVal">-</div>
+                <div class="card-sub" id="stationVal">-</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">環境風險計算分數</div>
+                <div class="card-value" id="riskVal">-</div>
+                <div class="card-sub">綜合氣候與環境權重評估</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右側滿版地圖 -->
+    <div id="map"></div>
+
+    <!-- 引入 Leaflet 地圖 JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // 各行政區預設經緯度對應表
+        const districtCoords = {
+            "大安區": [25.0330, 121.5654],
+            "信義區": [25.0337, 121.5645],
+            "中正區": [25.0408, 121.5179],
+            "中山區": [25.0642, 121.5319],
+            "大同區": [25.0601, 121.5126],
+            "文山區": [24.9897, 121.5702],
+            "板橋區": [25.0142, 121.4625],
+            "新店區": [24.9669, 121.5418],
+            "永和區": [25.0076, 121.5135],
+            "中和區": [24.9986, 121.5033],
+            "西屯區": [24.1816, 120.6375],
+            "北屯區": [24.1849, 120.7056],
+            "西區": [24.1438, 120.6626],
+            "南屯區": [24.1371, 120.6433],
+            "左營區": [22.6883, 120.3065],
+            "鼓山區": [22.6427, 120.2882],
+            "前鎮區": [22.5951, 120.3168],
+            "三民區": [22.6479, 120.3015]
+        };
+
+        // 縣市對應的鄉鎮市區資料
+        const districtOptionsData = {
+            "臺北市": ["大安區", "信義區", "中正區", "中山區", "大同區", "文山區"],
+            "新北市": ["板橋區", "新店區", "永和區", "中和區"],
+            "臺中市": ["西屯區", "北屯區", "西區", "南屯區"],
+            "高雄市": ["左營區", "鼓山區", "前鎮區", "三民區"]
+        };
+
+        // 初始化 Leaflet 滿版地圖 (以台北市為中心)
+        const map = L.map('map').setView([25.0478, 121.5170], 13);
+
+        // 載入 OpenStreetMap 圖資 (類似 Google Maps 風格)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        let currentMarker = L.marker([25.0330, 121.5654]).addTo(map)
+            .bindPopup("<b>大安區中心點</b>")
+            .openPopup();
+
+        // 動態切換縣市時，更新鄉鎮市區選單
+        function updateDistricts() {
+            const city = document.getElementById('citySelect').value;
+            const districtSelect = document.getElementById('districtSelect');
+            districtSelect.innerHTML = "";
+            
+            const districts = districtOptionsData[city] || [];
+            districts.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d;
+                opt.innerHTML = d;
+                districtSelect.appendChild(opt);
+            });
+            onDistrictChange();
+        }
+
+        // 當鄉鎮市區改變時，移動地圖視角與標記
+        function onDistrictChange() {
+            const district = document.getElementById('districtSelect').value;
+            const coords = districtCoords[district] || [25.0330, 121.5654];
+            
+            map.setView(coords, 14);
+            currentMarker.setLatLng(coords)
+                .setPopupContent(`<b>${district}</b>`)
+                .openPopup();
+        }
+
+        // 點擊地圖任意位置時，自動更新經緯度並可選擇發動查詢
+        map.on('click', function(e) {
+            const lat = e.latlng.lat;
+            const lng = e.latlng.lng;
+            
+            currentMarker.setLatLng([lat, lng])
+                .setPopupContent(`自訂座標點<br>緯度: ${lat.toFixed(4)}<br>經度: ${lng.toFixed(4)}`)
+                .openPopup();
+
+            // 自動觸發後端 API 查詢點擊座標
+            fetchDataByCoords(lat, lng, "自選座標點");
+        });
+
+        // 核心函數：透過 Fetch API 呼叫 FastAPI 後端
+        function fetchBackendData() {
+            const district = document.getElementById('districtSelect').value;
+            const coords = districtCoords[district] || [25.0330, 121.5654];
+            fetchDataByCoords(coords[0], coords[1], district);
+        }
+
+        function fetchDataByCoords(lat, lng, districtName) {
+            const loadingText = document.getElementById('loadingText');
+            const resultPanel = document.getElementById('resultPanel');
+            
+            loadingText.style.display = "block";
+            resultPanel.style.display = "none";
+
+            // 呼叫 FastAPI 後端端點
+            const apiUrl = `http://127.0.0.1:8000/api/v1/analyze?district=${encodeURIComponent(districtName)}&lat=${lat}&lon=${lng}`;
+
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error("後端伺服器回應錯誤");
+                    return response.json();
+                })
+                .then(data => {
+                    loadingText.style.display = "none";
+                    resultPanel.style.display = "block";
+
+                    // 填入數值到 HTML 介面卡片
+                    document.getElementById('priceVal').innerText = data.real_estate_summary.average_unit_price.toLocaleString() + " 元/坪";
+                    document.getElementById('sampleVal').innerText = "交易樣本數: " + data.real_estate_summary.sample_count;
+                    
+                    document.getElementById('tempVal').innerText = data.weather_summary.temperature + " °C";
+                    document.getElementById('stationVal').innerText = "觀測站: " + data.weather_summary.station;
+                    
+                    document.getElementById('riskVal').innerText = data.environmental_risk_score;
+                })
+                .catch(error => {
+                    loadingText.style.display = "none";
+                    alert("無法連線至後端伺服器！請確認 FastAPI 是否已透過 uvicorn 正常啟動。");
+                    console.error("Error:", error);
+                });
+        }
+    </script>
+</body>
+</html>
