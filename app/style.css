@@ -1,0 +1,173 @@
+/* style.css - 智慧不動產與氣象 GIS 系統樣式 */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+body {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+    background-color: #f8f9fa;
+}
+
+/* 左側控制與分析面板 */
+.sidebar {
+    width: 450px;
+    background: #ffffff;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.sidebar h2 {
+    font-size: 20px;
+    color: #202124;
+    margin-bottom: 8px;
+}
+
+.sidebar p.desc {
+    font-size: 13px;
+    color: #5f6368;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #3c4043;
+    margin-bottom: 5px;
+}
+
+.form-group select, 
+.form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #dadce0;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.form-group select:focus, 
+.form-group input:focus {
+    border-color: #1a73e8;
+}
+
+.search-wrapper {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-search {
+    padding: 0 15px;
+    background: #34a853;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+
+.btn-search:hover {
+    background: #2b8c44;
+}
+
+.btn-query {
+    width: 100%;
+    background-color: #1a73e8;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-top: 10px;
+}
+
+.btn-query:hover {
+    background-color: #1557b0;
+}
+
+/* 數據儀表板結果區 */
+.results-container {
+    margin-top: 25px;
+    border-top: 1px solid #e8eaed;
+    padding-top: 20px;
+}
+
+.results-container h3 {
+    font-size: 16px;
+    color: #202124;
+    margin-bottom: 12px;
+}
+
+.card {
+    background: #f1f3f4;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 12px;
+}
+
+.card-title {
+    font-size: 12px;
+    color: #5f6368;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+}
+
+.card-value {
+    font-size: 20px;
+    color: #202124;
+    font-weight: bold;
+}
+
+.card-sub {
+    font-size: 13px;
+    color: #1a73e8;
+    margin-top: 3px;
+}
+
+/* 右側滿版地圖區域 */
+#map {
+    flex-grow: 1;
+    height: 100vh;
+}
+
+.loading {
+    text-align: center;
+    color: #1a73e8;
+    font-weight: 600;
+    margin-top: 15px;
+    display: none;
+}
+
+.gist-section {
+    margin-top: 25px;
+    border-top: 1px solid #e8eaed;
+    padding-top: 20px;
+}
+
+.gist-section label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #3c4043;
+    margin-bottom: 8px;
+    display: block;
+}
