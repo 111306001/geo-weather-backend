@@ -3,10 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智慧不動產與氣象 GIS 地圖系統 (高精細開源版)</title>
-    <!-- 引入 Leaflet 地圖 CSS -->
+    <title>智慧不動產與氣象 GIS 地圖系統 (實價登錄資料庫版)</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- 引入獨立的 CSS 樣式檔 -->
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -14,9 +12,8 @@
     <!-- 左側控制與分析面板 -->
     <div class="sidebar">
         <h2>🗺️ 智慧不動產與氣象 GIS</h2>
-        <p class="desc">採用高精細開源圖資，支援全台縣市與鄉鎮市區選單及地圖點擊分析。</p>
+        <p class="desc">已串接台北市實價登錄 MySQL 資料庫與中央氣象署即時氣象。</p>
 
-        <!-- 全台縣市與鄉鎮市區聯動選單 -->
         <div class="form-group">
             <label for="citySelect">選擇縣市</label>
             <select id="citySelect" onchange="updateDistricts()">
@@ -31,24 +28,24 @@
             </select>
         </div>
 
-        <!-- 地址與路段關鍵字搜尋 -->
         <div class="form-group">
             <label for="addressKeywordInput">地址 / 路段關鍵字搜尋</label>
             <div class="search-wrapper">
-                <input type="text" id="addressKeywordInput" placeholder="例如：民生路、忠孝東路">
+                <input type="text" id="addressKeywordInput" placeholder="例如：忠孝東路、信義路">
                 <button type="button" class="btn-search" onclick="searchByKeyword()">搜尋</button>
             </div>
         </div>
 
         <button class="btn-query" onclick="fetchBackendData()">🚀 開始分析選定區域</button>
-        <div id="loadingText" class="loading">正在連線至後端雲端服務取得數據...</div>
+        <div id="loadingText" class="loading">正在向 MySQL 資料庫與氣象署查詢數據...</div>
 
         <!-- 數據儀表板結果區 -->
         <div class="results-container" id="resultPanel" style="display: none;">
             <h3>📊 區域即時分析報告</h3>
             
-            <div class="card">
-                <div class="card-title">區域平均單價</div>
+            <!-- 點擊此卡片可檢視詳細交易情況 -->
+            <div class="card" onclick="openTransactionModal()" style="cursor: pointer;" title="點擊查看詳細交易概況">
+                <div class="card-title">區域平均單價 (點擊看詳情)</div>
                 <div class="card-value" id="priceVal">-</div>
                 <div class="card-sub" id="sampleVal">-</div>
             </div>
@@ -65,56 +62,60 @@
                 <div class="card-sub">綜合氣候與環境權重評估</div>
             </div>
         </div>
-
-        <!-- GitHub Gist 嵌入區塊 -->
-        <div class="gist-section">
-            <label>📌 專案參考備忘錄</label>
-            <script src="https://gist.github.com/111306001/f166fd246206d070033bbf63f25889d2.js"></script>
-        </div>
     </div>
 
     <!-- 右側滿版地圖 -->
     <div id="map"></div>
 
-    <!-- 引入 Leaflet 地圖 JS -->
+    <!-- 詳細交易情況彈出視窗 (Modal) -->
+    <div class="modal-overlay" id="transactionModal">
+        <div class="modal-content">
+            <h3 id="modalTitle">📋 近期實價登錄交易摘要</h3>
+            <div id="modalBody">
+                <!-- 動態填入交易明細 -->
+            </div>
+            <button class="btn-close" onclick="closeTransactionModal()">關閉視窗</button>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // 全台完整縣市與鄉鎮市區對應資料庫
-        const taiwanDistricts = {
-            "臺北市": ["中正區", "大同區", "中山區", "松山區", "大安區", "萬華區", "信義區", "士林區", "北投區", "內湖區", "南港區", "文山區"],
-            "新北市": ["板橋區", "三重區", "中和區", "永和區", "新莊區", "新店區", "樹林區", "鶯歌區", "三峽區", "淡水區", "汐止區", "瑞芳區", "土城區", "蘆洲區", "五股區", "泰山區", "林口區", "深坑區", "石碇區", "坪林區", "三芝區", "石門區", "八里區", "平溪區", "雙溪區", "貢寮區", "金山區", "萬里區", "烏來區"],
-            "臺中市": ["中區", "東區", "南區", "西區", "北區", "西屯區", "南屯區", "北屯區", "豐原區", "東勢區", "大甲區", "清水區", "沙鹿區", "梧棲區", "后里區", "神岡區", "潭子區", "大雅區", "新社區", "石岡區", "外埔區", "大安區", "烏日區", "大肚區", "龍井區", "霧峰區", "太平區", "大里區", "和平區"],
-            "高雄市": ["楠梓區", "左營區", "鼓山區", "三民區", "鹽埕區", "前金區", "新興區", "苓雅區", "前鎮區", "旗津區", "小港區", "鳳山區", "林園區", "大寮區", "大樹區", "大社區", "仁武區", "鳥松區", "岡山區", "橋頭區", "燕巢區", "田寮區", "阿蓮區", "路竹區", "湖內區", "茄萣區", "永安區", "彌陀區", "梓官區", "旗山區", "美濃區", "六龜區", "甲仙區", "杉林區", "內門區", "茂林區", "桃源區", "那瑪夏區"]
-        };
+        let taiwanDistricts = {};
+        let currentTransactionsData = [];
+        let currentSelectedDistrict = "大安區";
 
-        // 初始化 Leaflet 滿版地圖
         const map = L.map('map').setView([25.0478, 121.5170], 13);
 
-        // 採用高精細度的 CartoDB Voyager 圖資
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-            maxZoom: 20,
-            subdomains: 'abcd',
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
         let currentMarker = L.marker([25.0330, 121.5654]).addTo(map)
             .bindPopup("<b>初始中心點</b>")
             .openPopup();
 
-        // 頁面載入時初始化縣市選單
         window.onload = function() {
-            const citySelect = document.getElementById('citySelect');
-            Object.keys(taiwanDistricts).forEach(city => {
-                const opt = document.createElement('option');
-                opt.value = city;
-                opt.innerHTML = city;
-                citySelect.appendChild(opt);
-            });
-            citySelect.value = "臺北市";
-            updateDistricts();
+            fetch('http://127.0.0.1:8000/api/v1/districts')
+                .then(res => res.json())
+                .then(data => {
+                    taiwanDistricts = data;
+                    const citySelect = document.getElementById('citySelect');
+                    citySelect.innerHTML = "";
+                    
+                    Object.keys(taiwanDistricts).forEach(city => {
+                        const opt = document.createElement('option');
+                        opt.value = city;
+                        opt.innerHTML = city;
+                        citySelect.appendChild(opt);
+                    });
+                    
+                    citySelect.value = "臺北市";
+                    updateDistricts();
+                })
+                .catch(err => console.error("無法取得行政區資料:", err));
         };
 
-        // 更新鄉鎮市區選單
         function updateDistricts() {
             const city = document.getElementById('citySelect').value;
             const districtSelect = document.getElementById('districtSelect');
@@ -130,11 +131,11 @@
             onDistrictChange();
         }
 
-        // 當鄉鎮市區改變時，自動平移地圖
         function onDistrictChange() {
             const city = document.getElementById('citySelect').value;
-            const district = document.getElementById('districtSelect').value;
-            const queryAddr = city + district;
+            currentSelectedDistrict = document.getElementById('districtSelect').value;
+            if (!currentSelectedDistrict) return;
+            const queryAddr = city + currentSelectedDistrict;
             
             fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryAddr)}`)
                 .then(res => res.json())
@@ -150,7 +151,6 @@
                 }).catch(err => console.error("Geocoding error:", err));
         }
 
-        // 透過關鍵字搜尋路段
         function searchByKeyword() {
             const city = document.getElementById('citySelect').value;
             const district = document.getElementById('districtSelect').value;
@@ -172,38 +172,30 @@
                         
                         map.setView([lat, lon], 16);
                         currentMarker.setLatLng([lat, lon])
-                            .setPopupContent(`<b>${fullQuery}</b><br>緯度: ${lat.toFixed(4)}, 經度: ${lon.toFixed(4)}`)
+                            .setPopupContent(`<b>${fullQuery}</b>`)
                             .openPopup();
 
                         fetchDataByCoords(lat, lon, district);
                     } else {
-                        alert("找不到該地址或路段，請嘗試更精確的關鍵字！");
+                        alert("找不到該地址或路段！");
                     }
                 })
-                .catch(err => {
-                    alert("地址搜尋發生錯誤");
-                    console.error(err);
-                });
+                .catch(err => console.error(err));
         }
 
-        // 點擊地圖任意位置
         map.on('click', function(e) {
             const lat = e.latlng.lat;
             const lng = e.latlng.lng;
-            
             currentMarker.setLatLng([lat, lng])
-                .setPopupContent(`自選座標點<br>緯度: ${lat.toFixed(4)}<br>經度: ${lng.toFixed(4)}`)
+                .setPopupContent(`座標: ${lat.toFixed(4)}, ${lng.toFixed(4)}`)
                 .openPopup();
-
-            fetchDataByCoords(lat, lng, "點選地圖區域");
+            fetchDataByCoords(lat, lng, currentSelectedDistrict);
         });
 
-        // 呼叫 FastAPI 後端
         function fetchBackendData() {
-            const district = document.getElementById('districtSelect').value;
             const lat = currentMarker.getLatLng().lat;
             const lng = currentMarker.getLatLng().lng;
-            fetchDataByCoords(lat, lng, district);
+            fetchDataByCoords(lat, lng, currentSelectedDistrict);
         }
 
         function fetchDataByCoords(lat, lng, districtName) {
@@ -224,19 +216,53 @@
                     loadingText.style.display = "none";
                     resultPanel.style.display = "block";
 
+                    // 記錄近期交易資料供 Modal 使用
+                    currentTransactionsData = data.recent_transactions || [];
+
                     document.getElementById('priceVal').innerText = data.real_estate_summary.average_unit_price.toLocaleString() + " 元/坪";
-                    document.getElementById('sampleVal').innerText = "交易樣本數: " + data.real_estate_summary.sample_count;
+                    document.getElementById('sampleVal').innerText = "MySQL 實價登錄樣本數: " + data.real_estate_summary.sample_count;
                     
                     document.getElementById('tempVal').innerText = data.weather_summary.temperature + " °C";
-                    document.getElementById('stationVal').innerText = "觀測站: " + data.weather_summary.station;
+                    document.getElementById('stationVal').innerText = "測站: " + data.weather_summary.station;
                     
                     document.getElementById('riskVal').innerText = data.environmental_risk_score;
                 })
                 .catch(error => {
                     loadingText.style.display = "none";
-                    alert("無法連線至後端伺服器！請確認 FastAPI 是否已正常啟動。");
+                    alert("無法連線至後端伺服器！請確認 FastAPI 是否已啟動。");
                     console.error("Error:", error);
                 });
+        }
+
+        // 控制彈出視窗 (Modal)
+        function openTransactionModal() {
+            const modal = document.getElementById('transactionModal');
+            const title = document.getElementById('modalTitle');
+            const body = document.getElementById('modalBody');
+
+            title.innerText = `📋 [${currentSelectedDistrict}] 近期實價登錄交易明細`;
+            body.innerHTML = "";
+
+            if (currentTransactionsData.length === 0) {
+                body.innerHTML = "<p style='color: #5f6368;'>目前此行政區無近期交易紀錄。</p>";
+            } else {
+                currentTransactionsData.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = "transaction-item";
+                    div.innerHTML = `
+                        <div>📍 <b>地址：</b>${item.address}</div>
+                        <div>💰 <b>總價：</b><span style="color: #d93025; font-weight: bold;">${item.price}</span></div>
+                        <div>🏠 <b>建物型態：</b>${item.type} | <b>交易日期：</b>${item.date}</div>
+                    `;
+                    body.appendChild(div);
+                });
+            }
+
+            modal.style.display = "flex";
+        }
+
+        function closeTransactionModal() {
+            document.getElementById('transactionModal').style.display = "none";
         }
     </script>
 </body>
