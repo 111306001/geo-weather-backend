@@ -17,7 +17,7 @@
 
 * **後端 (Backend)**：Python, FastAPI, Uvicorn, PyMySQL, Requests, Python-dotenv, Pydantic
 * **前端 (Frontend)**：HTML5, CSS3, JavaScript (ES6+), Leaflet.js (地圖圖資)
-* **資料庫 (Database)**：MySQL / MariaDB (內含實價登錄資料表 `a_lvr_land_a` 與 `a_lvr_land_a_build`)
+* **資料庫 (Database)**：MySQL (內含實價登錄資料表 `a_lvr_land_a` 與 `a_lvr_land_a_build`)
 
 ---
 
